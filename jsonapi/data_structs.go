@@ -1,12 +1,44 @@
 package jsonapi
 
-type document struct {
-	Links    links  `json:"links,omitempty"`
-	Data     data   `json:"data"`
-	Included []data `json:"included,omitempty"`
+import (
+	"bytes"
+	"encoding/json"
+	"errors"
+)
+
+// Document represents a JSONAPI document like specified: http://jsonapi.org
+type Document struct {
+	Links    Links         `json:"links,omitempty"`
+	Data     DataContainer `json:"data"`
+	Included []Data        `json:"included,omitempty"`
 }
 
-type links struct {
+// DataContainer is needed to either keep "data" contents as array or object.
+type DataContainer struct {
+	IsArray    bool
+	DataObject Data
+	DataArray  []Data
+}
+
+// UnmarshalJSON implements Unmarshaler because we have to detect if payload is an object
+// or an array
+func (c *DataContainer) UnmarshalJSON(payload []byte) error {
+	if bytes.HasPrefix(payload, []byte("{")) {
+		// payload is an object
+		return json.Unmarshal(payload, &c.DataObject)
+	}
+
+	if bytes.HasPrefix(payload, []byte("[")) {
+		// payload is an array
+		c.IsArray = true
+		return json.Unmarshal(payload, &c.DataArray)
+	}
+
+	return errors.New("Invalid json for data array/object")
+}
+
+// Links is general links struct for top level and relationships
+type Links struct {
 	Self     string `json:"self,omitempty"`
 	Related  string `json:"related,omitempty"`
 	First    string `json:"first,omitempty"`
@@ -15,21 +47,46 @@ type links struct {
 	Last     string `json:"last,omitempty"`
 }
 
-type data struct {
+// Data for top level and included data
+type Data struct {
 	Type          string                  `json:"type"`
 	ID            string                  `json:"id"`
-	Attributes    map[string]interface{}  `json:"attributes"`
-	Relationships map[string]relationship `json:"relationships,omitempty"`
-	Links         links                   `json:"links,omitempty"`
+	Attributes    json.RawMessage         `json:"attributes"`
+	Relationships map[string]Relationship `json:"relationships,omitempty"`
+	Links         Links                   `json:"links,omitempty"`
 }
 
-type relationship struct {
-	Links      links              `json:"links,omitempty"`
-	DataToOne  relationshipData   `json:"data,omitempty"`
-	DataToMany []relationshipData `json:"data,omitempty"`
+// Relationship contains reference IDs to the related structs
+type Relationship struct {
+	Links Links                     `json:"links,omitempty"`
+	Data  RelationshipDataContainer `json:"data,omitempty"`
 }
 
-type relationshipData struct {
+// RelationshipDataContainer is needed to either keep relationship "data" contents as array or object.
+type RelationshipDataContainer struct {
+	IsArray    bool
+	DataObject RelationshipData
+	DataArray  []RelationshipData
+}
+
+// UnmarshalJSON implements Unmarshaler and also detects array/object type
+func (c *RelationshipDataContainer) UnmarshalJSON(payload []byte) error {
+	if bytes.HasPrefix(payload, []byte("{")) {
+		// payload is an object
+		return json.Unmarshal(payload, &c.DataObject)
+	}
+
+	if bytes.HasPrefix(payload, []byte("[")) {
+		// payload is an array
+		c.IsArray = true
+		return json.Unmarshal(payload, &c.DataArray)
+	}
+
+	return errors.New("Invalid json for relationship data array/object")
+}
+
+// RelationshipData represents one specific reference ID
+type RelationshipData struct {
 	Type string `json:"type"`
 	ID   string `json:"id"`
 }
