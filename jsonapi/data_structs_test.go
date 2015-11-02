@@ -31,9 +31,8 @@ var _ = Describe("JSONAPI Struct tests", func() {
 				Attributes: json.RawMessage([]byte(`{"foo": "bar"}`)),
 				Relationships: map[string]Relationship{
 					"author": {
-						Data: RelationshipDataContainer{
-							IsArray: false,
-							DataObject: RelationshipData{
+						Data: &RelationshipDataContainer{
+							DataObject: &RelationshipData{
 								Type: "author",
 								ID:   "1",
 							},
@@ -75,8 +74,7 @@ var _ = Describe("JSONAPI Struct tests", func() {
 				Attributes: json.RawMessage([]byte(`{"foo": "bar"}`)),
 				Relationships: map[string]Relationship{
 					"comments": {
-						Data: RelationshipDataContainer{
-							IsArray: true,
+						Data: &RelationshipDataContainer{
 							DataArray: []RelationshipData{
 								{
 									Type: "comments",
