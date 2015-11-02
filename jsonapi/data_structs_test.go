@@ -25,7 +25,7 @@ var _ = Describe("JSONAPI Struct tests", func() {
 				}
 			}
 `
-			expectedData := Data{
+			expectedData := &Data{
 				Type:       "test",
 				ID:         "1",
 				Attributes: json.RawMessage([]byte(`{"foo": "bar"}`)),

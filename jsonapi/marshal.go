@@ -68,12 +68,7 @@ var serverInformationNil ServerInformation
 // MarshalToJSON marshals a struct to json
 // it works like `Marshal` but returns json instead
 func MarshalToJSON(val interface{}) ([]byte, error) {
-	result, err := Marshal(val)
-	if err != nil {
-		return []byte{}, err
-	}
-
-	return json.Marshal(result)
+	return Marshal(val)
 }
 
 // MarshalToJSONWithURLs marshals a struct to json with URLs in `links`
@@ -87,15 +82,24 @@ func MarshalToJSONWithURLs(val interface{}, information ServerInformation) ([]by
 }
 
 // MarshalWithURLs can be used to include the generation of `related` and `self` links
-func MarshalWithURLs(data interface{}, information ServerInformation) (Document, error) {
-	return marshal(data, information)
+func MarshalWithURLs(data interface{}, information ServerInformation) ([]byte, error) {
+	document, err := marshal(data, information)
+	if err != nil {
+		return []byte(""), err
+	}
+
+	return json.Marshal(document)
 }
 
 // Marshal thats the input from `data` which can be a struct, a slice, or a pointer of it.
 // Any struct in `data`or data itself, must at least implement the `MarshalIdentifier` interface.
 // If so, it will generate a map[string]interface{} matching the jsonapi specification.
-func Marshal(data interface{}) (Document, error) {
-	return marshal(data, serverInformationNil)
+func Marshal(data interface{}) ([]byte, error) {
+	document, err := marshal(data, serverInformationNil)
+	if err != nil {
+		return []byte(""), err
+	}
+	return json.Marshal(document)
 }
 
 func marshal(data interface{}, information ServerInformation) (Document, error) {
@@ -285,8 +289,12 @@ func getStructRelationships(relationer MarshalLinkedRelations, information Serve
 
 		links := getLinksForServerInformation(relationer, name, information)
 		relationship := Relationship{
-			Data:  &container,
 			Links: links,
+		}
+
+		// skip relationship data completely if IsNotLoaded is set
+		if !reference.IsNotLoaded {
+			relationship.Data = &container
 		}
 
 		relationships[name] = relationship
@@ -310,9 +318,11 @@ func getLinksForServerInformation(relationer MarshalLinkedRelations, name string
 
 		links.Self = fmt.Sprintf("%s/%s/%s/relationships/%s", prefix, structType, relationer.GetID(), name)
 		links.Related = fmt.Sprintf("%s/%s/%s/%s", prefix, structType, relationer.GetID(), name)
+
+		return links
 	}
 
-	return links
+	return nil
 }
 
 func getIncludedStructs(included MarshalIncludedRelations, information ServerInformation) (*[]Data, error) {
