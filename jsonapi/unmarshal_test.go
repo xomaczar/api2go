@@ -1,6 +1,7 @@
 package jsonapi
 
 import (
+	"database/sql"
 	"encoding/json"
 	"time"
 
@@ -115,7 +116,8 @@ var _ = FDescribe("Unmarshal", func() {
 						"title": "something",
 						"text": "blubb",
 						"internal": "1337"
-					}
+					},
+					"type": "simplePosts"
 				}
 			}
 			`), &post)
@@ -130,7 +132,8 @@ var _ = FDescribe("Unmarshal", func() {
 					"attributes": {
 						"text": "Gopher",
 						"size": "blubb"
-					}
+					},
+					"type": "simplePosts"
 				}
 			}
 			`), &post)
@@ -149,7 +152,8 @@ var _ = FDescribe("Unmarshal", func() {
 						"title": "` + firstPost.Title + `",
 						"text": "` + firstPost.Text + `!",
 						"created-date": "` + t.Format(time.RFC1123) + `"
-					}
+					},
+					"type": "simplePosts"
 				}
 			}`)
 			var post SimplePost
@@ -295,141 +299,82 @@ var _ = FDescribe("Unmarshal", func() {
 		})
 	})
 
-	//Context("when unmarshaling objects with single relation", func() {
-	//type BlogAuthor struct {
-	//ID   int
-	//Name string
-	//}
+	Context("when unmarshaling objects with relations", func() {
+		It("unmarshal to-one and to-many relations", func() {
+			expectedPost := Post{ID: 3, Title: "Test", AuthorID: sql.NullInt64{Valid: true, Int64: 1}, Author: nil, CommentsIDs: []int{1, 2}}
+			postJSON := []byte(`
+			{
+				"data": {
+					"id":   "3",
+					"type": "posts",
+					"attributes": {
+						"title": "Test"
+					},
+					"relationships": {
+						"author": {
+							"data": {
+								"id":   "1",
+								"type": "users"
+							}
+						},
+						"comments": {
+							"data": [
+							{
+								"id":   "1",
+								"type": "comments"
+							},
+							{
+								"id":   "2",
+								"type": "comments"
+							}
+							]
+						}
+					}
+				}
+			}
+			`)
+			var post Post
+			err := Unmarshal(postJSON, &post)
+			Expect(err).To(BeNil())
+			Expect(post).To(Equal(expectedPost))
+		})
 
-	//type BlogPost struct {
-	//ID       int
-	//Text     string
-	//AuthorID int
-	//Author   *BlogAuthor
-	//ParentID sql.NullInt64
-	//}
+		It("check if type field matches target struct", func() {
+			postJSON := []byte(`
+			{
+				"data": {
+					"id":    "1",
+					"type":  "totallyWrongType",
+					"attributes": {
+						"title": "Test"
+					}
+				}
+			}`)
+			var post Post
+			err := Unmarshal(postJSON, &post)
+			Expect(err).To(HaveOccurred())
+		})
+	})
 
-	//It("unmarshals author id", func() {
-	//post := Post{ID: 1, Title: "Test", AuthorID: sql.NullInt64{Valid: true, Int64: 1}, Author: nil}
-	//postMap := map[string]interface{}{
-	//"data": []interface{}{
-	//map[string]interface{}{
-	//"id":   "1",
-	//"type": "posts",
-	//"attributes": map[string]interface{}{
-	//"title": "Test",
-	//},
-	//"relationships": map[string]interface{}{
-	//"author": map[string]interface{}{
-	//"data": map[string]interface{}{
-	//"id":   "1",
-	//"type": "users",
-	//},
-	//},
-	//},
-	//},
-	//},
-	//}
-	//var posts []Post
-	//err := Unmarshal(postMap, &posts)
-	//Expect(err).To(BeNil())
-	//Expect(posts).To(Equal([]Post{post}))
-	//})
-
-	//It("unmarshal to-one and to-many relations", func() {
-	//post := Post{ID: 3, Title: "Test", AuthorID: sql.NullInt64{Valid: true, Int64: 1}, Author: nil, CommentsIDs: []int{1, 2}}
-	//postMap := map[string]interface{}{
-	//"data": []interface{}{
-	//map[string]interface{}{
-	//"id":   "3",
-	//"type": "posts",
-	//"attributes": map[string]interface{}{
-	//"title": "Test",
-	//},
-	//"relationships": map[string]interface{}{
-	//"author": map[string]interface{}{
-	//"data": map[string]interface{}{
-	//"id":   "1",
-	//"type": "users",
-	//},
-	//},
-	//"comments": map[string]interface{}{
-	//"data": []interface{}{
-	//map[string]interface{}{
-	//"id":   "1",
-	//"type": "comments",
-	//},
-	//map[string]interface{}{
-	//"id":   "2",
-	//"type": "comments",
-	//},
-	//},
-	//},
-	//},
-	//},
-	//},
-	//}
-	//var posts []Post
-	//err := Unmarshal(postMap, &posts)
-	//Expect(err).To(BeNil())
-	//Expect(posts).To(Equal([]Post{post}))
-	//})
-
-	//It("unmarshal no linked content", func() {
-	//post := Post{ID: 1, Title: "Test"}
-	//postMap := map[string]interface{}{
-	//"data": []interface{}{
-	//map[string]interface{}{
-	//"id":   "1",
-	//"type": "posts",
-	//"attributes": map[string]interface{}{
-	//"title": "Test",
-	//},
-	//},
-	//},
-	//}
-	//var posts []Post
-	//err := Unmarshal(postMap, &posts)
-	//Expect(err).To(BeNil())
-	//Expect(posts).To(Equal([]Post{post}))
-	//})
-
-	//It("check if type field matches target struct", func() {
-	//postMap := map[string]interface{}{
-	//"data": []interface{}{
-	//map[string]interface{}{
-	//"id":    "1",
-	//"type":  "blogPosts",
-	//"title": "Test",
-	//},
-	//},
-	//}
-	//var posts []Post
-	//err := Unmarshal(postMap, &posts)
-	//Expect(err).To(HaveOccurred())
-	//})
-	//})
-
-	//Context("when unmarshaling into an existing slice", func() {
-	//It("updates existing entries", func() {
-	//post := Post{ID: 1, Title: "Old Title"}
-	//postMap := map[string]interface{}{
-	//"data": []interface{}{
-	//map[string]interface{}{
-	//"id":   "1",
-	//"type": "posts",
-	//"attributes": map[string]interface{}{
-	//"title": "New Title",
-	//},
-	//},
-	//},
-	//}
-	//posts := []Post{post}
-	//err := Unmarshal(postMap, &posts)
-	//Expect(err).To(BeNil())
-	//Expect(posts).To(Equal([]Post{{ID: 1, Title: "New Title"}}))
-	//})
-	//})
+	Context("when unmarshaling into an existing slice", func() {
+		It("overrides existing entries", func() {
+			post := Post{ID: 1, Title: "Old Title"}
+			postJSON := []byte(`
+			{
+				"data": [{
+					"id":   "1",
+					"type": "posts",
+					"attributes": {
+						"title": "New Title"
+					}
+				}]
+			}`)
+			posts := []Post{post}
+			err := Unmarshal(postJSON, &posts)
+			Expect(err).To(BeNil())
+			Expect(posts).To(Equal([]Post{{ID: 1, Title: "New Title"}}))
+		})
+	})
 
 	//Context("when unmarshaling with null values", func() {
 	//It("adding a new entry", func() {

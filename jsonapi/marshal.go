@@ -366,7 +366,7 @@ func marshalStruct(data MarshalIdentifier, information ServerInformation) (Docum
 	return result, nil
 }
 
-func getStructType(data MarshalIdentifier) string {
+func getStructType(data interface{}) string {
 	entityName, ok := data.(EntityNamer)
 	if ok {
 		return entityName.GetName()

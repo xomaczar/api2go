@@ -74,6 +74,11 @@ type EditToManyRelations interface {
 	DeleteToManyIDs(name string, IDs []string) error
 }
 
+var (
+	errInterface         = errors.New("target must implement UnmarshalIdentifier interface")
+	errAttributesMissing = errors.New("missing mandatory attributes object")
+)
+
 // Unmarshal reads a jsonapi compatible JSON as []byte
 // target must at least implement the `UnmarshalIdentifier` interface.
 func Unmarshal(data []byte, target interface{}) error {
@@ -83,25 +88,8 @@ func Unmarshal(data []byte, target interface{}) error {
 		return err
 	}
 
-	interfaceError := errors.New("target must implement UnmarshalIdentifier interface")
-	attributesMissingError := errors.New("missing mandatory attributes object")
-
 	if ctx.Data.DataObject != nil {
-		castedTarget, ok := target.(UnmarshalIdentifier)
-		if !ok {
-			return interfaceError
-		}
-
-		if ctx.Data.DataObject.Attributes == nil {
-			return attributesMissingError
-		}
-
-		err = json.Unmarshal(ctx.Data.DataObject.Attributes, castedTarget)
-		if err != nil {
-			return err
-		}
-		castedTarget.SetID(ctx.Data.DataObject.ID)
-		return setRelationshipIDs(ctx.Data.DataObject.Relationships, castedTarget)
+		return setDataIntoTarget(ctx.Data.DataObject, target)
 	}
 
 	if ctx.Data.DataArray != nil {
@@ -111,19 +99,7 @@ func Unmarshal(data []byte, target interface{}) error {
 
 		for _, record := range ctx.Data.DataArray {
 			targetRecord := reflect.New(targetType)
-			targetRecordElem, ok := targetRecord.Interface().(UnmarshalIdentifier)
-			if !ok {
-				return interfaceError
-			}
-			if record.Attributes == nil {
-				return attributesMissingError
-			}
-			err := json.Unmarshal(record.Attributes, targetRecordElem)
-			if err != nil {
-				return err
-			}
-			targetRecordElem.SetID(record.ID)
-			err = setRelationshipIDs(record.Relationships, targetRecordElem)
+			err := setDataIntoTarget(&record, targetRecord.Interface())
 			if err != nil {
 				return err
 			}
@@ -134,6 +110,29 @@ func Unmarshal(data []byte, target interface{}) error {
 	}
 
 	return nil
+}
+
+func setDataIntoTarget(data *Data, target interface{}) error {
+	castedTarget, ok := target.(UnmarshalIdentifier)
+	if !ok {
+		return errInterface
+	}
+
+	err := checkType(data.Type, castedTarget)
+	if err != nil {
+		return err
+	}
+
+	if data.Attributes == nil {
+		return errAttributesMissing
+	}
+
+	err = json.Unmarshal(data.Attributes, castedTarget)
+	if err != nil {
+		return err
+	}
+	castedTarget.SetID(data.ID)
+	return setRelationshipIDs(data.Relationships, castedTarget)
 }
 
 // extracts all found relationships and set's them via SetToOneReferenceID or SetToManyReferenceIDs
@@ -158,6 +157,15 @@ func setRelationshipIDs(relationships map[string]Relationship, target UnmarshalI
 			}
 			castedToMany.SetToManyReferenceIDs(key, IDs)
 		}
+	}
+
+	return nil
+}
+
+func checkType(incomingType string, target UnmarshalIdentifier) error {
+	actualType := getStructType(target)
+	if incomingType != actualType {
+		return fmt.Errorf("Type %s in JSON does not match target struct type %s", incomingType, actualType)
 	}
 
 	return nil
