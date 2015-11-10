@@ -3,13 +3,16 @@ package jsonapi
 import (
 	"database/sql"
 	"encoding/json"
+	"fmt"
 	"time"
+
+	"gopkg.in/guregu/null.v2/zero"
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 )
 
-var _ = FDescribe("Unmarshal", func() {
+var _ = Describe("Unmarshal", func() {
 	Context("When unmarshaling simple objects", func() {
 		t, _ := time.Parse(time.RFC3339, "2014-11-10T16:30:48.823Z")
 		/*
@@ -376,230 +379,215 @@ var _ = FDescribe("Unmarshal", func() {
 		})
 	})
 
-	//Context("when unmarshaling with null values", func() {
-	//It("adding a new entry", func() {
-	//post := SimplePost{ID: "1", Title: "Nice Title"}
-	//postMap := map[string]interface{}{
-	//"data": []interface{}{
-	//map[string]interface{}{
-	//"id":   "1",
-	//"type": "simplePosts",
-	//"attributes": map[string]interface{}{
-	//"title": "Nice Title",
-	//"text":  nil,
-	//},
-	//},
-	//},
-	//}
-	//var posts []SimplePost
-	//err := Unmarshal(postMap, &posts)
-	//Expect(err).To(BeNil())
-	//Expect(posts).To(Equal([]SimplePost{post}))
-	//})
-	//})
+	Context("when unmarshaling with null values", func() {
+		It("adding a new entry", func() {
+			expectedPost := SimplePost{ID: "1", Title: "Nice Title"}
+			postJSON := []byte(`
+			{
+				"data": {
+					"id":   "1",
+					"type": "simplePosts",
+					"attributes": {
+						"title": "Nice Title",
+						"text":  null
+					}
+				}
+			}`)
+			var post SimplePost
+			err := Unmarshal(postJSON, &post)
+			Expect(err).To(BeNil())
+			Expect(post).To(Equal(expectedPost))
+		})
+	})
 
-	//Context("when unmarshaling without id", func() {
-	//It("adding a new entry", func() {
-	//post := SimplePost{Title: "Nice Title"}
-	//postMap := map[string]interface{}{
-	//"data": []interface{}{
-	//map[string]interface{}{
-	//"type": "simplePosts",
-	//"attributes": map[string]interface{}{
-	//"title": "Nice Title",
-	//},
-	//},
-	//},
-	//}
-	//var posts []SimplePost
-	//err := Unmarshal(postMap, &posts)
-	//Expect(err).To(BeNil())
-	//Expect(posts).To(Equal([]SimplePost{post}))
-	//})
-	//})
+	Context("when unmarshaling without id", func() {
+		It("adding a new entry", func() {
+			expectedPost := SimplePost{Title: "Nice Title"}
+			postJSON := []byte(`
+			{
+				"data": {
+					"type": "simplePosts",
+					"attributes": {
+						"title": "Nice Title"
+					}
+				}
+			}`)
+			var post SimplePost
+			err := Unmarshal(postJSON, &post)
+			Expect(err).To(BeNil())
+			Expect(post).To(Equal(expectedPost))
+		})
+	})
 
-	//Context("when unmarshalling objects with numbers", func() {
-	//It("correctly converts number to int64", func() {
-	//json := `
-	//{
-	//"data": [
-	//{
-	//"id": "test",
-	//"type": "numberPosts",
-	//"attributes": {
-	//"title": "Blubb",
-	//"number": 1337
-	//}
-	//}
-	//]
-	//}
-	//`
+	Context("when unmarshalling objects with numbers", func() {
+		It("correctly converts number to int64", func() {
+			json := `
+			{
+				"data": [
+				{
+					"id": "test",
+					"type": "numberPosts",
+					"attributes": {
+						"title": "Blubb",
+						"number": 1337
+					}
+				}
+				]
+			}
+			`
+			var numberPosts []NumberPost
 
-	//var numberPosts []NumberPost
+			err := Unmarshal([]byte(json), &numberPosts)
+			Expect(err).ToNot(HaveOccurred())
+			Expect(len(numberPosts)).To(Equal(1))
+			Expect(numberPosts[0].Number).To(Equal(int64(1337)))
+		})
 
-	//err := UnmarshalFromJSON([]byte(json), &numberPosts)
-	//Expect(err).ToNot(HaveOccurred())
-	//Expect(len(numberPosts)).To(Equal(1))
-	//Expect(numberPosts[0].Number).To(Equal(int64(1337)))
-	//})
+		It("correctly converts negative number to int64", func() {
+			json := `
+			{
+				"data": [
+				{
+					"id": "test",
+					"type": "numberPosts",
+					"attributes": {
+						"title": "Blubb",
+						"number": -1337
+					}
+				}
+				]
+			}
+			`
+			var numberPosts []NumberPost
 
-	//It("correctly converts negative number to int64", func() {
-	//json := `
-	//{
-	//"data": [
-	//{
-	//"id": "test",
-	//"type": "numberPosts",
-	//"attributes": {
-	//"title": "Blubb",
-	//"number": -1337
-	//}
-	//}
-	//]
-	//}
-	//`
+			err := Unmarshal([]byte(json), &numberPosts)
+			Expect(err).ToNot(HaveOccurred())
+			Expect(len(numberPosts)).To(Equal(1))
+			Expect(numberPosts[0].Number).To(Equal(int64(-1337)))
+		})
 
-	//var numberPosts []NumberPost
+		It("correctly converts number to uint64", func() {
+			json := `
+			{
+				"data": [
+				{
+					"id": "test",
+					"type": "numberPosts",
+					"attributes": {
+						"title": "Blubb",
+						"unsignedNumber": 1337
+					}
+				}
+				]
+			}
+			`
 
-	//err := UnmarshalFromJSON([]byte(json), &numberPosts)
-	//Expect(err).ToNot(HaveOccurred())
-	//Expect(len(numberPosts)).To(Equal(1))
-	//Expect(numberPosts[0].Number).To(Equal(int64(-1337)))
-	//})
+			var numberPosts []NumberPost
 
-	//It("correctly converts number to uint64", func() {
-	//json := `
-	//{
-	//"data": [
-	//{
-	//"id": "test",
-	//"type": "numberPosts",
-	//"attributes": {
-	//"title": "Blubb",
-	//"unsignedNumber": 1337
-	//}
-	//}
-	//]
-	//}
-	//`
+			err := Unmarshal([]byte(json), &numberPosts)
+			Expect(err).ToNot(HaveOccurred())
+			Expect(len(numberPosts)).To(Equal(1))
+			Expect(numberPosts[0].UnsignedNumber).To(Equal(uint64(1337)))
+		})
+	})
 
-	//var numberPosts []NumberPost
+	Context("SQL Null-Types", func() {
+		var (
+			nullPosts []SQLNullPost
+			nullPost  SQLNullPost
+			timeZero  time.Time
+		)
 
-	//err := UnmarshalFromJSON([]byte(json), &numberPosts)
-	//Expect(err).ToNot(HaveOccurred())
-	//Expect(len(numberPosts)).To(Equal(1))
-	//Expect(numberPosts[0].UnsignedNumber).To(Equal(uint64(1337)))
-	//})
-	//})
+		BeforeEach(func() {
+			nullPosts = []SQLNullPost{}
+			nullPost = SQLNullPost{}
+			timeZero = time.Time{}
+		})
 
-	//Context("SQL Null-Types", func() {
-	//var nullPosts []SQLNullPost
-	//var timeZero time.Time
+		It("correctly unmarshals String, Int64, Float64 and Time", func() {
+			err := Unmarshal([]byte(fmt.Sprintf(`
+			{
+				"data": {
+					"id": "theID",
+					"type": "sqlNullPosts",
+					"attributes": {
+						"title": "Test",
+						"likes": 666,
+						"rating": 66.66,
+						"isCool": true,
+						"today": "%v"
+					}
+				}
+			}
+			`, timeZero.Format(time.RFC3339))), &nullPost)
+			Expect(err).ToNot(HaveOccurred())
+			Expect(nullPost).To(Equal(SQLNullPost{
+				ID:     "theID",
+				Title:  zero.StringFrom("Test"),
+				Likes:  zero.IntFrom(666),
+				Rating: zero.FloatFrom(66.66),
+				IsCool: zero.BoolFrom(true),
+				Today:  zero.TimeFrom(timeZero.UTC()),
+			}))
+		})
 
-	//BeforeEach(func() {
-	//nullPosts = []SQLNullPost{}
-	//timeZero = time.Time{}
-	//})
+		It("correctly unmarshals Null String, Int64, Float64 and Time", func() {
+			err := Unmarshal([]byte(`
+			{
+				"data": {
+					"id": "theID",
+					"type": "sqlNullPosts",
+					"attributes": {
+						"title": null,
+						"likes": null,
+						"rating": null,
+						"isCool": null,
+						"today": null
+					}
+				}
+			}
+			`), &nullPost)
+			Expect(err).ToNot(HaveOccurred())
+			Expect(nullPost).To(Equal(SQLNullPost{
+				ID:     "theID",
+				Title:  zero.StringFromPtr(nil),
+				Likes:  zero.IntFromPtr(nil),
+				Rating: zero.FloatFromPtr(nil),
+				IsCool: zero.BoolFromPtr(nil),
+				Today:  zero.TimeFromPtr(nil),
+			}))
+		})
 
-	//It("correctly unmarshals String, Int64, Float64 and Time", func() {
-	//err := UnmarshalFromJSON([]byte(fmt.Sprintf(`
-	//{
-	//"data": {
-	//"id": "theID",
-	//"type": "sqlNullPosts",
-	//"attributes": {
-	//"title": "Test",
-	//"likes": 666,
-	//"rating": 66.66,
-	//"isCool": true,
-	//"today": "%v"
-	//}
-	//}
-	//}
-	//`, timeZero.Format(time.RFC3339))), &nullPosts)
-	//Expect(err).ToNot(HaveOccurred())
-	//Expect(nullPosts).To(HaveLen(1))
-	//Expect(nullPosts[0]).To(Equal(SQLNullPost{
-	//ID:     "theID",
-	//Title:  zero.StringFrom("Test"),
-	//Likes:  zero.IntFrom(666),
-	//Rating: zero.FloatFrom(66.66),
-	//IsCool: zero.BoolFrom(true),
-	//Today:  zero.TimeFrom(timeZero.UTC()),
-	//}))
-	//})
-
-	//It("correctly unmarshals Null String, Int64, Float64 and Time", func() {
-	//err := UnmarshalFromJSON([]byte(`
-	//{
-	//"data": {
-	//"id": "theID",
-	//"type": "sqlNullPosts",
-	//"attributes": {
-	//"title": null,
-	//"likes": null,
-	//"rating": null,
-	//"isCool": null,
-	//"today": null
-	//}
-	//}
-	//}
-	//`), &nullPosts)
-	//Expect(err).ToNot(HaveOccurred())
-	//Expect(nullPosts).To(HaveLen(1))
-	//Expect(nullPosts[0]).To(Equal(SQLNullPost{
-	//ID:     "theID",
-	//Title:  zero.StringFromPtr(nil),
-	//Likes:  zero.IntFromPtr(nil),
-	//Rating: zero.FloatFromPtr(nil),
-	//IsCool: zero.BoolFromPtr(nil),
-	//Today:  zero.TimeFromPtr(nil),
-	//}))
-	//})
-
-	//It("overwrites existing data with nulls when marshaling", func() {
-	//target := SQLNullPost{
-	//ID:     "newID",
-	//Title:  zero.StringFrom("TestTitle"),
-	//Likes:  zero.IntFrom(11),
-	//IsCool: zero.BoolFrom(true),
-	//Rating: zero.FloatFrom(4.5),
-	//Today:  zero.TimeFrom(time.Now().UTC())}
-	//nullPosts = append(nullPosts, target)
-	//Expect(nullPosts).To(HaveLen(1))
-	//ctx := map[string]interface{}{}
-	//err := json.Unmarshal([]byte(`
-	//{
-	//"data": {
-	//"id": "newID",
-	//"type": "sqlNullPosts",
-	//"attributes": {
-	//"title": null,
-	//"likes": null,
-	//"rating": null,
-	//"isCool": null,
-	//"today": null
-	//}
-	//}
-	//}
-	//`), &ctx)
-	//Expect(err).ToNot(HaveOccurred())
-	//// This follows the technique used in api.go
-	//updatingObjs := reflect.MakeSlice(reflect.SliceOf(reflect.TypeOf(target)), 1, 1)
-	//updatingObjs.Index(0).Set(reflect.ValueOf(target))
-	//err = UnmarshalInto(ctx, reflect.TypeOf(target), &updatingObjs)
-	//Expect(err).ToNot(HaveOccurred())
-	//updatingObj := updatingObjs.Index(0).Interface()
-	//Expect(updatingObjs.Len()).To(Equal(1))
-	//Expect(updatingObj).To(Equal(SQLNullPost{
-	//ID:     "newID",
-	//Title:  zero.StringFromPtr(nil),
-	//Likes:  zero.IntFromPtr(nil),
-	//Rating: zero.FloatFromPtr(nil),
-	//IsCool: zero.BoolFromPtr(nil),
-	//Today:  zero.TimeFromPtr(nil),
-	//}))
-	//})
-
-	//})
+		// No it will not do this because of the implementation in zero library.
+		It("sets existing zero value to invalid when unmarshaling null values", func() {
+			target := SQLNullPost{
+				ID:     "newID",
+				Title:  zero.StringFrom("TestTitle"),
+				Likes:  zero.IntFrom(11),
+				IsCool: zero.BoolFrom(true),
+				Rating: zero.FloatFrom(4.5),
+				Today:  zero.TimeFrom(time.Now().UTC())}
+			err := Unmarshal([]byte(`
+			{
+				"data": {
+					"id": "newID",
+					"type": "sqlNullPosts",
+					"attributes": {
+						"title": null,
+						"likes": null,
+						"rating": null,
+						"isCool": null,
+						"today": null
+					}
+				}
+			}
+			`), &target)
+			Expect(err).ToNot(HaveOccurred())
+			Expect(target.Title.Valid).To(Equal(false))
+			Expect(target.Likes.Valid).To(Equal(false))
+			Expect(target.Rating.Valid).To(Equal(false))
+			Expect(target.IsCool.Valid).To(Equal(false))
+			Expect(target.Today.Valid).To(Equal(false))
+		})
+	})
 })

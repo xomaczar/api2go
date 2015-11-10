@@ -98,12 +98,33 @@ func Unmarshal(data []byte, target interface{}) error {
 		targetValue := targetPointer.Elem()
 
 		for _, record := range ctx.Data.DataArray {
-			targetRecord := reflect.New(targetType)
-			err := setDataIntoTarget(&record, targetRecord.Interface())
-			if err != nil {
-				return err
+			// check if there already is an entry with the same id in target slice, otherwise
+			// create a new target and append
+			var targetRecord, emptyValue reflect.Value
+			for i := 0; i < targetValue.Len(); i++ {
+				marshalCasted, ok := targetValue.Index(i).Interface().(MarshalIdentifier)
+				if !ok {
+					return errors.New("existing structs must implement interface MarshalIdentifier")
+				}
+				if record.ID == marshalCasted.GetID() {
+					targetRecord = targetValue.Index(i).Addr()
+					break
+				}
 			}
-			targetValue = reflect.Append(targetValue, targetRecord.Elem())
+
+			if targetRecord == emptyValue || targetRecord.IsNil() {
+				targetRecord = reflect.New(targetType)
+				err := setDataIntoTarget(&record, targetRecord.Interface())
+				if err != nil {
+					return err
+				}
+				targetValue = reflect.Append(targetValue, targetRecord.Elem())
+			} else {
+				err := setDataIntoTarget(&record, targetRecord.Interface())
+				if err != nil {
+					return err
+				}
+			}
 		}
 
 		targetPointer.Elem().Set(targetValue)
