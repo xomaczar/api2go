@@ -138,6 +138,7 @@ func Unmarshal(data []byte, target interface{}) error {
 }
 
 func setDataIntoTarget(data *Data, target interface{}) error {
+	fmt.Println("targetType", reflect.TypeOf(reflect.ValueOf(target).Elem().Interface()))
 	castedTarget, ok := target.(UnmarshalIdentifier)
 	if !ok {
 		return errInterface

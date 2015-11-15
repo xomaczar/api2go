@@ -39,12 +39,12 @@ func (i invalid) GetID() string {
 }
 
 type Post struct {
-	ID       string `jsonapi:"-"`
-	Title    string
-	Value    null.Float
-	Author   *User     `jsonapi:"-"`
-	Comments []Comment `jsonapi:"-"`
-	Bananas  []Banana  `jsonapi:"-"`
+	ID       string     `json:"-"`
+	Title    string     `json:"title"`
+	Value    null.Float `json:"value"`
+	Author   *User      `json:"-"`
+	Comments []Comment  `json:"-"`
+	Bananas  []Banana   `json:"-"`
 }
 
 func (p Post) GetID() string {
@@ -179,8 +179,8 @@ func (p Post) GetReferencedStructs() []jsonapi.MarshalIdentifier {
 }
 
 type Comment struct {
-	ID    string `jsonapi:"-"`
-	Value string
+	ID    string `json:"-"`
+	Value string `json:"value"`
 }
 
 func (c Comment) GetID() string {
@@ -197,9 +197,9 @@ func (b Banana) GetID() string {
 }
 
 type User struct {
-	ID   string `jsonapi:"-"`
-	Name string
-	Info string
+	ID   string `json:"-"`
+	Name string `json:"name"`
+	Info string `json:"info"`
 }
 
 func (u User) GetID() string {
@@ -1089,7 +1089,7 @@ var _ = Describe("RestHandler", func() {
 			Expect(rec.Code).To(Equal(http.StatusOK))
 			Expect(rec.HeaderMap["Content-Type"][0]).To(Equal("application/vnd.api+json"))
 			actual := strings.TrimSpace(string(rec.Body.Bytes()))
-			Expect(actual).To(Equal(jsonResponse))
+			Expect(actual).To(MatchJSON(jsonResponse))
 		})
 
 		It("Selects the default content marshaler when Content-Type doesn't specify a known content type", func() {
@@ -1100,7 +1100,7 @@ var _ = Describe("RestHandler", func() {
 			Expect(rec.Code).To(Equal(http.StatusOK))
 			Expect(rec.HeaderMap["Content-Type"][0]).To(Equal("application/vnd.api+json"))
 			actual := strings.TrimSpace(string(rec.Body.Bytes()))
-			Expect(actual).To(Equal(jsonResponse))
+			Expect(actual).To(MatchJSON(jsonResponse))
 		})
 
 		It("Selects the default content marshaler when Accept doesn't specify a known content type", func() {
@@ -1111,7 +1111,7 @@ var _ = Describe("RestHandler", func() {
 			Expect(rec.Code).To(Equal(http.StatusOK))
 			Expect(rec.HeaderMap["Content-Type"][0]).To(Equal("application/vnd.api+json"))
 			actual := strings.TrimSpace(string(rec.Body.Bytes()))
-			Expect(actual).To(Equal(jsonResponse))
+			Expect(actual).To(MatchJSON(jsonResponse))
 		})
 
 		It("Selects the correct content marshaler when Content-Type specifies a known content type", func() {
@@ -1122,7 +1122,7 @@ var _ = Describe("RestHandler", func() {
 			Expect(rec.Code).To(Equal(http.StatusOK))
 			Expect(rec.HeaderMap["Content-Type"][0]).To(Equal(`application/vnd.api+prettyjson`))
 			actual := strings.TrimSpace(string(rec.Body.Bytes()))
-			Expect(actual).To(Equal(prettyResponse))
+			Expect(actual).To(MatchJSON(prettyResponse))
 		})
 
 		It("Selects the correct content marshaler when Accept specifies a known content type", func() {
@@ -1133,7 +1133,7 @@ var _ = Describe("RestHandler", func() {
 			Expect(rec.Code).To(Equal(http.StatusOK))
 			Expect(rec.HeaderMap["Content-Type"][0]).To(Equal(`application/vnd.api+prettyjson`))
 			actual := strings.TrimSpace(string(rec.Body.Bytes()))
-			Expect(actual).To(Equal(prettyResponse))
+			Expect(actual).To(MatchJSON(prettyResponse))
 		})
 	})
 

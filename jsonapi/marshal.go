@@ -66,7 +66,7 @@ var serverInformationNil ServerInformation
 
 // MarshalWithURLs can be used to include the generation of `related` and `self` links
 func MarshalWithURLs(data interface{}, information ServerInformation) ([]byte, error) {
-	document, err := marshal(data, information)
+	document, err := MarshalToStruct(data, information)
 	if err != nil {
 		return []byte(""), err
 	}
@@ -78,14 +78,17 @@ func MarshalWithURLs(data interface{}, information ServerInformation) ([]byte, e
 // Any struct in `data`or data itself, must at least implement the `MarshalIdentifier` interface.
 // If so, it will generate a map[string]interface{} matching the jsonapi specification.
 func Marshal(data interface{}) ([]byte, error) {
-	document, err := marshal(data, serverInformationNil)
+	document, err := MarshalToStruct(data, serverInformationNil)
 	if err != nil {
 		return []byte(""), err
 	}
 	return json.Marshal(document)
 }
 
-func marshal(data interface{}, information ServerInformation) (Document, error) {
+// MarshalToStruct marshals an api2go compatible struct into a jsonapi Document structure which then can be
+// marshaled to JSON. You only need this method if you want to extract or extend parts of the document.
+// You should directly use Marshal to get a []byte with JSON in it.
+func MarshalToStruct(data interface{}, information ServerInformation) (Document, error) {
 	if data == nil {
 		return Document{}, errors.New("nil cannot be marshalled")
 	}

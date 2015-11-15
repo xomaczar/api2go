@@ -13,9 +13,9 @@ import (
 )
 
 type SomeData struct {
-	ID         string `jsonapi:"-"`
-	Data       string
-	CustomerID string `jsonapi:"name=customerId"`
+	ID         string `json:"-"`
+	Data       string `json:"data"`
+	CustomerID string `json:"customerId"`
 }
 
 func (s SomeData) GetID() string {
@@ -131,7 +131,7 @@ var _ = Describe("Test return code behavior", func() {
 
 	Context("Create", func() {
 		post := func(payload SomeData) {
-			m, err := jsonapi.MarshalToJSON(payload)
+			m, err := jsonapi.Marshal(payload)
 			Expect(err).ToNot(HaveOccurred())
 			req, err := http.NewRequest("POST", "/v1/someDatas", strings.NewReader(string(m)))
 			Expect(err).ToNot(HaveOccurred())
@@ -142,7 +142,7 @@ var _ = Describe("Test return code behavior", func() {
 			post(payload)
 			Expect(rec.Code).To(Equal(http.StatusCreated))
 			var actual SomeData
-			err := jsonapi.UnmarshalFromJSON(rec.Body.Bytes(), &actual)
+			err := jsonapi.Unmarshal(rec.Body.Bytes(), &actual)
 			Expect(err).ToNot(HaveOccurred())
 			Expect(payloadID).To(Equal(actual))
 		})
@@ -188,15 +188,16 @@ var _ = Describe("Test return code behavior", func() {
 
 	Context("Update", func() {
 		patch := func(payload SomeData) {
-			m, err := jsonapi.MarshalToJSON(payload)
+			m, err := jsonapi.Marshal(payload)
 			Expect(err).ToNot(HaveOccurred())
 			req, err := http.NewRequest("PATCH", "/v1/someDatas/12345", strings.NewReader(string(m)))
 			Expect(err).ToNot(HaveOccurred())
 			api.Handler().ServeHTTP(rec, req)
 		}
 
-		It("returns 200 ok if the server modified a field", func() {
+		FIt("returns 200 ok if the server modified a field", func() {
 			patch(SomeData{ID: "12345", Data: "override me"})
+			Expect(rec.Body).To(Equal(""))
 			Expect(rec.Code).To(Equal(http.StatusOK))
 			var actual SomeData
 			err := jsonapi.UnmarshalFromJSON(rec.Body.Bytes(), &actual)
