@@ -88,6 +88,10 @@ func Unmarshal(data []byte, target interface{}) error {
 		return err
 	}
 
+	if ctx.Data == nil {
+		return errors.New(`Source JSON is empty and has no "atributes" payload object`)
+	}
+
 	if ctx.Data.DataObject != nil {
 		return setDataIntoTarget(ctx.Data.DataObject, target)
 	}

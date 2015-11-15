@@ -64,22 +64,6 @@ type ServerInformation interface {
 
 var serverInformationNil ServerInformation
 
-// MarshalToJSON marshals a struct to json
-// it works like `Marshal` but returns json instead
-func MarshalToJSON(val interface{}) ([]byte, error) {
-	return Marshal(val)
-}
-
-// MarshalToJSONWithURLs marshals a struct to json with URLs in `links`
-func MarshalToJSONWithURLs(val interface{}, information ServerInformation) ([]byte, error) {
-	result, err := MarshalWithURLs(val, information)
-	if err != nil {
-		return []byte{}, err
-	}
-
-	return json.Marshal(result)
-}
-
 // MarshalWithURLs can be used to include the generation of `related` and `self` links
 func MarshalWithURLs(data interface{}, information ServerInformation) ([]byte, error) {
 	document, err := marshal(data, information)
