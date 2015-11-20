@@ -546,16 +546,11 @@ func (res *resource) handleLinked(c APIContexter, api *API, w http.ResponseWrite
 		}
 	}
 
-	err := Error{
-		Status: string(http.StatusNotFound),
-		Title:  "Not Found",
-		Detail: "No resource handler is registered to handle the linked resource " + linked.Name,
-	}
-
-	answ := response{Data: err, Status: http.StatusNotFound}
-
-	return respondWith(answ, info, http.StatusNotFound, w, r, res.marshalers)
-
+	return NewHTTPError(
+		errors.New("Not Found"),
+		"No resource handler is registered to handle the linked resource "+linked.Name,
+		http.StatusNotFound,
+	)
 }
 
 func (res *resource) handleCreate(c APIContexter, w http.ResponseWriter, r *http.Request, prefix string, info information) error {
@@ -618,14 +613,28 @@ func (res *resource) handleUpdate(c APIContexter, w http.ResponseWriter, r *http
 	}
 
 	fmt.Println("obj", obj.Result(), reflect.TypeOf(obj.Result()))
-	updatingObj := obj.Result()
-	err = jsonapi.Unmarshal(ctx, &updatingObj)
+	// we have to make the Result to a pointer to unmarshal into it
+	updatingObj := reflect.ValueOf(obj.Result())
+	target := reflect.New(reflect.TypeOf(obj.Result()))
+	target.Elem().Set(updatingObj)
+	fmt.Println("converted", target)
+	//updatingObj = &updatingObj
+	//updatingObj = updatingObj.(jsonapi.UnmarshalIdentifier)
+	/*
+	 *refResult := reflect.ValueOf(updatingObj)
+	 *if refResult.Kind() == reflect.Struct {
+	 *  updatingObj = refResult.Addr().Interface()
+	 *}
+	 */
+	fmt.Println("type obj", reflect.ValueOf(obj.Result()).Kind())
+	ptrValue := target.Interface()
+	err = jsonapi.Unmarshal(ctx, ptrValue)
 	fmt.Println("error", err)
 	if err != nil {
 		return err
 	}
 
-	response, err := res.source.Update(&updatingObj, buildRequest(c, r))
+	response, err := res.source.Update(target.Elem().Interface(), buildRequest(c, r))
 
 	if err != nil {
 		return err

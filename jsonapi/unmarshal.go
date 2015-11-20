@@ -82,6 +82,7 @@ var (
 // Unmarshal reads a jsonapi compatible JSON as []byte
 // target must at least implement the `UnmarshalIdentifier` interface.
 func Unmarshal(data []byte, target interface{}) error {
+	fmt.Println("target beginning", reflect.ValueOf(target).Type())
 	ctx := &Document{}
 	err := json.Unmarshal(data, ctx)
 	if err != nil {
@@ -138,6 +139,10 @@ func Unmarshal(data []byte, target interface{}) error {
 }
 
 func setDataIntoTarget(data *Data, target interface{}) error {
+	fmt.Println("kind is", reflect.ValueOf(target).Kind())
+	if reflect.ValueOf(target).Kind() == reflect.Struct {
+		target = reflect.ValueOf(target).Addr().Interface()
+	}
 	fmt.Println("targetType", reflect.TypeOf(reflect.ValueOf(target).Elem().Interface()))
 	castedTarget, ok := target.(UnmarshalIdentifier)
 	if !ok {
