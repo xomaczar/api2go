@@ -109,6 +109,8 @@ func (p *Post) SetToManyReferenceIDs(name string, IDs []string) error {
 			comments = append(comments, Comment{ID: ID})
 		}
 		p.Comments = comments
+
+		return nil
 	}
 
 	if name == "bananas" {
@@ -117,6 +119,8 @@ func (p *Post) SetToManyReferenceIDs(name string, IDs []string) error {
 			bananas = append(bananas, Banana{ID: ID})
 		}
 		p.Bananas = bananas
+
+		return nil
 	}
 
 	return errors.New("There is no to-many relationship with the name " + name)
@@ -706,8 +710,8 @@ var _ = Describe("RestHandler", func() {
 			Expect(rec.Body.Bytes()).To(MatchJSON(errorJSON))
 		})
 
-		It("POSTSs new objects", func() {
-			reqBody := strings.NewReader(`{"data": [{"attributes":{"title": "New Post" }, "type": "posts"}]}`)
+		It("POSTSs new object", func() {
+			reqBody := strings.NewReader(`{"data": {"attributes":{"title": "New Post" }, "type": "posts"}}`)
 			req, err := http.NewRequest("POST", "/v1/posts", reqBody)
 			Expect(err).To(BeNil())
 			api.Handler().ServeHTTP(rec, req)
@@ -760,7 +764,7 @@ var _ = Describe("RestHandler", func() {
 		})
 
 		It("POSTSs with client id", func() {
-			reqBody := strings.NewReader(`{"data": [{"attributes": {"title": "New Post"}, "id": "100", "type": "posts"}]}`)
+			reqBody := strings.NewReader(`{"data": {"attributes": {"title": "New Post"}, "id": "100", "type": "posts"}}`)
 			req, err := http.NewRequest("POST", "/v1/posts", reqBody)
 			Expect(err).To(BeNil())
 			api.Handler().ServeHTTP(rec, req)
@@ -776,15 +780,6 @@ var _ = Describe("RestHandler", func() {
 			Expect(rec.Code).To(Equal(http.StatusNotFound))
 		})
 
-		It("POSTSs multiple objects", func() {
-			reqBody := strings.NewReader(`{"posts": [{"title": "New Post"}, {"title" : "Second New Post"}]}`)
-			req, err := http.NewRequest("POST", "/v1/posts", reqBody)
-			Expect(err).To(BeNil())
-			api.Handler().ServeHTTP(rec, req)
-			Expect(rec.Code).To(Equal(http.StatusInternalServerError))
-			Expect(rec.Header().Get("Location")).To(Equal(""))
-			Expect(rec.Body.Bytes()).ToNot(HaveLen(0))
-		})
 		It("OPTIONS on collection route", func() {
 			req, err := http.NewRequest("OPTIONS", "/v1/posts", nil)
 			api.Handler().ServeHTTP(rec, req)
@@ -814,8 +809,8 @@ var _ = Describe("RestHandler", func() {
 			req, err := http.NewRequest("PATCH", "/v1/posts/1", reqBody)
 			Expect(err).To(BeNil())
 			api.Handler().ServeHTTP(rec, req)
-			Expect(rec.Code).To(Equal(http.StatusForbidden))
-			Expect(string(rec.Body.Bytes())).To(MatchJSON(`{"errors":[{"status":"403","title":"missing mandatory type key."}]}`))
+			Expect(rec.Code).To(Equal(http.StatusNotAcceptable))
+			Expect(rec.Body.String()).To(MatchJSON(`{"errors":[{"status":"406","title":"Type  in JSON does not match target struct type posts"}]}`))
 		})
 
 		It("patch must contain type and id but does not have id", func() {
@@ -823,8 +818,8 @@ var _ = Describe("RestHandler", func() {
 			req, err := http.NewRequest("PATCH", "/v1/posts/1", reqBody)
 			Expect(err).To(BeNil())
 			api.Handler().ServeHTTP(rec, req)
-			Expect(rec.Code).To(Equal(http.StatusForbidden))
-			Expect(string(rec.Body.Bytes())).To(MatchJSON(`{"errors":[{"status":"403","title":"missing mandatory id key."}]}`))
+			Expect(rec.Code).To(Equal(http.StatusNotAcceptable))
+			Expect(string(rec.Body.Bytes())).To(MatchJSON(`{"errors":[{"status":"406","title":"missing mandatory attributes object"}]}`))
 		})
 
 		Context("Updating", func() {
@@ -852,7 +847,7 @@ var _ = Describe("RestHandler", func() {
 				doRequest(`{"data": {"id": "1", "attributes": {"title": "New Title", "value": null}, "type": "posts"}}`, "/v1/posts/1", "PATCH")
 				Expect(source.posts["1"].Title).To(Equal("New Title"))
 				Expect(target.Title).To(Equal("New Title"))
-				Expect(target.Value).To(Equal(null.FloatFromPtr(nil)))
+				Expect(target.Value.Valid).To(Equal(false))
 			})
 
 			It("Patch updates to-one relationships", func() {
@@ -861,6 +856,7 @@ var _ = Describe("RestHandler", func() {
 				"data": {
 					"type": "posts",
 					"id": "1",
+					"attributes": {},
 					"relationships": {
 						"author": {
 							"data": {
@@ -881,6 +877,7 @@ var _ = Describe("RestHandler", func() {
 				"data": {
 					"type": "posts",
 					"id": "1",
+					"attributes": {},
 					"relationships": {
 						"author": {
 							"data": null
@@ -898,6 +895,7 @@ var _ = Describe("RestHandler", func() {
 				"data": {
 					"type": "posts",
 					"id": "1",
+					"attributes": {},
 					"relationships": {
 						"comments": {
 							"data": [
@@ -920,6 +918,7 @@ var _ = Describe("RestHandler", func() {
 				"data": {
 					"type": "posts",
 					"id": "1",
+					"attributes": {},
 					"relationships": {
 						"comments": {
 							"data": []
@@ -1011,7 +1010,7 @@ var _ = Describe("RestHandler", func() {
 		})
 
 		It("POSTSs new objects", func() {
-			reqBody := strings.NewReader(`{"data": [{"title": "", "type": "posts"}]}`)
+			reqBody := strings.NewReader(`{"data": {"attributes": {"title": ""}, "type": "posts"}}`)
 			req, err := http.NewRequest("POST", "/posts", reqBody)
 			Expect(err).To(BeNil())
 			api.Handler().ServeHTTP(rec, req)

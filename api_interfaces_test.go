@@ -106,7 +106,7 @@ var _ = Describe("Test interface api type casting", func() {
 	})
 
 	It("Post works with lowercase renaming", func() {
-		reqBody := strings.NewReader(`{"data": [{"attributes":{"customerId": "2" }, "type": "someDatas"}]}`)
+		reqBody := strings.NewReader(`{"data": {"attributes":{"customerId": "2" }, "type": "someDatas"}}`)
 		req, err := http.NewRequest("POST", "/v1/someDatas", reqBody)
 		Expect(err).To(BeNil())
 		api.Handler().ServeHTTP(rec, req)
@@ -195,12 +195,11 @@ var _ = Describe("Test return code behavior", func() {
 			api.Handler().ServeHTTP(rec, req)
 		}
 
-		FIt("returns 200 ok if the server modified a field", func() {
+		It("returns 200 ok if the server modified a field", func() {
 			patch(SomeData{ID: "12345", Data: "override me"})
-			Expect(rec.Body).To(Equal(""))
 			Expect(rec.Code).To(Equal(http.StatusOK))
 			var actual SomeData
-			err := jsonapi.UnmarshalFromJSON(rec.Body.Bytes(), &actual)
+			err := jsonapi.Unmarshal(rec.Body.Bytes(), &actual)
 			Expect(err).ToNot(HaveOccurred())
 			Expect(payloadID).To(Equal(actual))
 		})

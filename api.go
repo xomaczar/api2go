@@ -558,7 +558,14 @@ func (res *resource) handleCreate(c APIContexter, w http.ResponseWriter, r *http
 	if err != nil {
 		return err
 	}
-	newObj := reflect.New(res.resourceType).Interface()
+
+	// Ok this is weird again, but reflect.New produces a pointer, so we need the pure type without pointer,
+	// otherwise we would have a pointer pointer type that we don't want.
+	resourceType := res.resourceType
+	if resourceType.Kind() == reflect.Ptr {
+		resourceType = resourceType.Elem()
+	}
+	newObj := reflect.New(resourceType).Interface()
 
 	err = jsonapi.Unmarshal(ctx, newObj)
 	if err != nil {
@@ -612,29 +619,21 @@ func (res *resource) handleUpdate(c APIContexter, w http.ResponseWriter, r *http
 		return err
 	}
 
-	fmt.Println("obj", obj.Result(), reflect.TypeOf(obj.Result()))
 	// we have to make the Result to a pointer to unmarshal into it
 	updatingObj := reflect.ValueOf(obj.Result())
-	target := reflect.New(reflect.TypeOf(obj.Result()))
-	target.Elem().Set(updatingObj)
-	fmt.Println("converted", target)
-	//updatingObj = &updatingObj
-	//updatingObj = updatingObj.(jsonapi.UnmarshalIdentifier)
-	/*
-	 *refResult := reflect.ValueOf(updatingObj)
-	 *if refResult.Kind() == reflect.Struct {
-	 *  updatingObj = refResult.Addr().Interface()
-	 *}
-	 */
-	fmt.Println("type obj", reflect.ValueOf(obj.Result()).Kind())
-	ptrValue := target.Interface()
-	err = jsonapi.Unmarshal(ctx, ptrValue)
-	fmt.Println("error", err)
+	if updatingObj.Kind() == reflect.Struct {
+		updatingObjPtr := reflect.New(reflect.TypeOf(obj.Result()))
+		updatingObjPtr.Elem().Set(updatingObj)
+		err = jsonapi.Unmarshal(ctx, updatingObjPtr.Interface())
+		updatingObj = updatingObjPtr.Elem()
+	} else {
+		err = jsonapi.Unmarshal(ctx, updatingObj.Interface())
+	}
 	if err != nil {
-		return err
+		return NewHTTPError(nil, err.Error(), http.StatusNotAcceptable)
 	}
 
-	response, err := res.source.Update(target.Elem().Interface(), buildRequest(c, r))
+	response, err := res.source.Update(updatingObj.Interface(), buildRequest(c, r))
 
 	if err != nil {
 		return err

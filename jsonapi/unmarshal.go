@@ -82,7 +82,6 @@ var (
 // Unmarshal reads a jsonapi compatible JSON as []byte
 // target must at least implement the `UnmarshalIdentifier` interface.
 func Unmarshal(data []byte, target interface{}) error {
-	fmt.Println("target beginning", reflect.ValueOf(target).Type())
 	ctx := &Document{}
 	err := json.Unmarshal(data, ctx)
 	if err != nil {
@@ -98,6 +97,9 @@ func Unmarshal(data []byte, target interface{}) error {
 	}
 
 	if ctx.Data.DataArray != nil {
+		if reflect.TypeOf(target).Elem().Kind() != reflect.Slice {
+			return errors.New("Source JSON contained an array, but single record was expected")
+		}
 		targetType := reflect.TypeOf(target).Elem().Elem()
 		targetPointer := reflect.ValueOf(target)
 		targetValue := targetPointer.Elem()
@@ -139,11 +141,9 @@ func Unmarshal(data []byte, target interface{}) error {
 }
 
 func setDataIntoTarget(data *Data, target interface{}) error {
-	fmt.Println("kind is", reflect.ValueOf(target).Kind())
 	if reflect.ValueOf(target).Kind() == reflect.Struct {
 		target = reflect.ValueOf(target).Addr().Interface()
 	}
-	fmt.Println("targetType", reflect.TypeOf(reflect.ValueOf(target).Elem().Interface()))
 	castedTarget, ok := target.(UnmarshalIdentifier)
 	if !ok {
 		return errInterface
@@ -168,25 +168,57 @@ func setDataIntoTarget(data *Data, target interface{}) error {
 
 // extracts all found relationships and set's them via SetToOneReferenceID or SetToManyReferenceIDs
 func setRelationshipIDs(relationships map[string]Relationship, target UnmarshalIdentifier) error {
-	for key, rel := range relationships {
+	toOneError := fmt.Errorf("struct %s does not implement UnmarshalToOneRelations", reflect.TypeOf(target))
+	toManyError := fmt.Errorf("struct %s does not implement UnmarshalToManyRelations", reflect.TypeOf(target))
+
+	for name, rel := range relationships {
+		// relationship is empty case
+		if rel.Data == nil {
+			if Pluralize(name) == name {
+				castedToMany, ok := target.(UnmarshalToManyRelations)
+				if !ok {
+					return toManyError
+				}
+
+				castedToMany.SetToManyReferenceIDs(name, []string{})
+				break
+			}
+
+			castedToOne, ok := target.(UnmarshalToOneRelations)
+			if !ok {
+				return toOneError
+			}
+
+			castedToOne.SetToOneReferenceID(name, "")
+			break
+		}
+
+		// valid toOne case
 		if rel.Data.DataObject != nil {
 			castedToOne, ok := target.(UnmarshalToOneRelations)
 			if !ok {
-				return errors.New("struct <name> does not implement UnmarshalToOneRelations")
+				return toOneError
 			}
-			castedToOne.SetToOneReferenceID(key, rel.Data.DataObject.ID)
+			err := castedToOne.SetToOneReferenceID(name, rel.Data.DataObject.ID)
+			if err != nil {
+				return err
+			}
 		}
 
+		// valid toMany case
 		if rel.Data.DataArray != nil {
 			castedToMany, ok := target.(UnmarshalToManyRelations)
 			if !ok {
-				return errors.New("struct <name> does not implement UnmarshalToManyRelations")
+				return toManyError
 			}
 			IDs := make([]string, len(rel.Data.DataArray))
 			for index, relData := range rel.Data.DataArray {
 				IDs[index] = relData.ID
 			}
-			castedToMany.SetToManyReferenceIDs(key, IDs)
+			err := castedToMany.SetToManyReferenceIDs(name, IDs)
+			if err != nil {
+				return err
+			}
 		}
 	}
 
