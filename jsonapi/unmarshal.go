@@ -489,7 +489,9 @@ func processRelationshipsData(data interface{}, linkName string, target interfac
 			}
 			dataID, ok := data["id"].(string)
 			if !ok {
-				return fmt.Errorf("all data objects must have a field id for %s", linkName)
+				//return fmt.Errorf("all data objects must have a field id for %s", linkName)
+				//When id is null just continue to he next one
+				continue
 			}
 
 			hasManyIDs = append(hasManyIDs, dataID)
