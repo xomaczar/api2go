@@ -374,7 +374,7 @@ func getStructType(data MarshalIdentifier) string {
 	return Pluralize(Jsonify(reflectType.Name()))
 }
 
-func getStructFields(data MarshalIdentifier) map[string]interface{} {
+func getStructFields(data interface{}) map[string]interface{} {
 	result := make(map[string]interface{})
 	val := reflect.ValueOf(data)
 	if val.Kind() == reflect.Ptr {
@@ -398,11 +398,14 @@ func getStructFields(data MarshalIdentifier) map[string]interface{} {
 			if checkDate.IsZero() {
 				continue
 			}
-		}
-
-		// check for embedded structs and also extract all fields of them into result
-		if embeddedStruct, ok := field.Interface().(MarshalIdentifier); ok {
-			embeddedFields := getStructFields(embeddedStruct)
+		} else if field.Type().Kind() == reflect.Struct &&
+			(field.Type() != reflect.TypeOf(zero.Float{}) &&
+				field.Type() != reflect.TypeOf(zero.Bool{}) &&
+				field.Type() != reflect.TypeOf(zero.Int{}) &&
+				field.Type() != reflect.TypeOf(zero.String{}) &&
+				field.Type() != reflect.TypeOf(zero.Time{})) {
+			// check for embedded structs and also extract all fields of them into result
+			embeddedFields := getStructFields(field.Interface())
 			for k, v := range embeddedFields {
 				result[k] = v
 			}
